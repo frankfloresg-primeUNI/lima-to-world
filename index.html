@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asesor de Región AWS</title>
+<meta name="description" content="Elige en qué región de AWS publicar tu proyecto según latencia medida en vivo, costo mensual y estabilidad de la conexión.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07060d; --panel: #0e0c1a; --panel2: #161230; --text: #ece9fb; --muted: #9690b8;
+    --cyan: #00f0ff; --magenta: #ff2bd6; --yellow: #fcee0a; --green: #39ff88; --red: #ff4d6d;
+    --border: #2c2558;
+    --f-titulo: "Orbitron", "Segoe UI", sans-serif;
+    --f-texto: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+    --f-dato: "Share Tech Mono", ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--text); font-family: var(--f-texto); font-size: 17px; line-height: 1.5;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 15% 0%, rgba(255, 43, 214, .16), transparent 55%),
+      radial-gradient(ellipse at 90% 20%, rgba(0, 240, 255, .12), transparent 50%),
+      linear-gradient(rgba(0, 240, 255, .045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, .045) 1px, transparent 1px);
+    background-size: auto, auto, 40px 40px, 40px 40px;
+    background-attachment: fixed;
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, .22) 3px);
+    opacity: .35;
+  }
+  a { color: var(--cyan); }
+  ::selection { background: var(--magenta); color: #000; }
+
+  /* ---------- Cabecera ---------- */
+  header { padding: 64px 16px 40px; text-align: center; }
+  .etiqueta-sup { font-family: var(--f-dato); color: var(--magenta); letter-spacing: .25em; font-size: .85rem; }
+  h1 {
+    font-family: var(--f-titulo); font-weight: 900; margin: 10px 0 14px; line-height: 1.05;
+    font-size: clamp(2rem, 7vw, 4rem); text-transform: uppercase; letter-spacing: .04em;
+    color: var(--text); text-shadow: 0 0 18px rgba(0, 240, 255, .55);
+    position: relative; display: inline-block;
+  }
+  h1 span { color: var(--yellow); text-shadow: 0 0 18px rgba(252, 238, 10, .6); }
+  header p { max-width: 640px; margin: 0 auto 24px; color: var(--muted); font-size: 1.1rem; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  @media (prefers-reduced-motion: no-preference) {
+    h1::before, h1::after {
+      content: attr(data-text); position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+    }
+    h1::before { color: var(--magenta); text-shadow: none; animation: glitch 3.2s infinite steps(1); }
+    h1::after  { color: var(--cyan);    text-shadow: none; animation: glitch 2.7s infinite reverse steps(1); }
+    @keyframes glitch {
+      0%, 88%, 100% { clip-path: inset(100% 0 0 0); transform: none; }
+      90% { clip-path: inset(10% 0 70% 0); transform: translate(-3px, 0); }
+      93% { clip-path: inset(55% 0 25% 0); transform: translate(3px, 0); }
+      96% { clip-path: inset(30% 0 50% 0); transform: translate(-2px, 0); }
+    }
+    .pulso { animation: pulso 1.4s ease-in-out infinite; }
+    @keyframes pulso { 50% { opacity: .45; } }
+  }
+
+  /* ---------- Navegación ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50; display: flex; gap: 4px; overflow-x: auto; padding: 10px 16px;
+    background: rgba(7, 6, 13, .92); border-bottom: 1px solid var(--border); backdrop-filter: blur(6px);
+  }
+  nav a {
+    font-family: var(--f-titulo); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); text-decoration: none; padding: 8px 12px; white-space: nowrap; border: 1px solid transparent;
+  }
+  nav a:hover { color: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0, 240, 255, .35); }
+
+  /* ---------- Estructura ---------- */
+  main { max-width: 1040px; margin: 0 auto; padding: 0 16px 40px; }
+  section { margin: 36px 0; scroll-margin-top: 70px; }
+  h2 {
+    font-family: var(--f-titulo); font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(1.25rem, 3.5vw, 1.8rem); color: var(--cyan); margin: 0 0 6px;
+    text-shadow: 0 0 14px rgba(0, 240, 255, .5);
+  }
+  h2::before { content: "// "; color: var(--magenta); }
+  .bajada { color: var(--muted); margin: 0 0 18px; }
+  h3 { font-family: var(--f-titulo); font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; color: var(--yellow); margin: 0 0 10px; }
+
+  .panel {
+    background: linear-gradient(160deg, var(--panel2), var(--panel) 60%);
+    border: 1px solid var(--border); border-left: 3px solid var(--magenta);
+    padding: 22px; margin: 14px 0; position: relative;
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+  }
+  .panel.cyan { border-left-color: var(--cyan); }
+  .paso-num { font-family: var(--f-titulo); font-weight: 900; color: var(--magenta); font-size: 1.6rem; margin-right: 10px; text-shadow: 0 0 12px rgba(255, 43, 214, .6); }
+  .paso-titulo { display: flex; align-items: center; margin-bottom: 14px; }
+  .paso-titulo h3 { margin: 0; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .campos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: end; }
+  label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; letter-spacing: .03em; }
+  input, select {
+    width: 100%; padding: 9px 10px; font-family: var(--f-dato); font-size: 1rem; color: var(--text);
+    background: #0a0816; border: 1px solid var(--border); border-radius: 0; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 0 14px rgba(0, 240, 255, .35); }
+  .nota { font-size: .9rem; color: var(--muted); margin: 10px 0 0; }
+  .nota code, code { font-family: var(--f-dato); color: var(--cyan); }
+
+  .check-linea { display: flex; gap: 10px; align-items: center; margin-top: 14px; cursor: pointer; font-weight: 600; }
+  .check-linea input { width: 18px; height: 18px; accent-color: var(--magenta); }
+
+  /* Tarjetas de servicio */
+  .servicio { border: 1px solid var(--border); padding: 16px; background: rgba(10, 8, 22, .7); transition: border-color .2s, box-shadow .2s; }
+  .servicio:has(input[type="checkbox"]:checked) { border-color: var(--magenta); box-shadow: 0 0 18px rgba(255, 43, 214, .25); }
+  .servicio > label.cabeza { display: flex; gap: 10px; align-items: center; cursor: pointer; color: var(--text); font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+  .servicio > label.cabeza input { width: 20px; height: 20px; accent-color: var(--magenta); }
+  .servicio .desc { color: var(--muted); font-size: .92rem; margin: 0 0 12px; }
+  .servicio:not(:has(input[type="checkbox"]:checked)) .campos { opacity: .35; pointer-events: none; }
+
+  /* Botones */
+  .btn {
+    font-family: var(--f-titulo); font-weight: 800; font-size: .9rem; letter-spacing: .12em; text-transform: uppercase;
+    background: var(--yellow); color: #000; border: 0; padding: 14px 28px; cursor: pointer; text-decoration: none; display: inline-block;
+    clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+    transition: background .15s, box-shadow .15s;
+  }
+  .btn:hover { background: var(--cyan); box-shadow: 0 0 22px rgba(0, 240, 255, .6); }
+  .btn:disabled { opacity: .45; cursor: wait; }
+  .btn.sec { background: transparent; color: var(--cyan); outline: 1px solid var(--cyan); outline-offset: -1px; }
+  .btn.sec:hover { background: rgba(0, 240, 255, .12); }
+  .fila-boton { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+
+  .progreso { height: 6px; background: #0a0816; border: 1px solid var(--border); margin-top: 16px; }
+  .progreso div { height: 100%; width: 0; background: linear-gradient(90deg, var(--magenta), var(--cyan)); box-shadow: 0 0 12px var(--cyan); transition: width .2s; }
+  #estado { font-family: var(--f-dato); color: var(--muted); font-size: .9rem; margin: 8px 0 0; }
+
+  /* Resultado */
+  #resultado[hidden], #pc-resultado[hidden] { display: none; }
+  .ganador { border-left-color: var(--yellow); }
+  .ganador .region-codigo { font-family: var(--f-titulo); font-weight: 900; font-size: clamp(1.6rem, 5vw, 2.4rem); color: var(--yellow); text-shadow: 0 0 18px rgba(252, 238, 10, .55); margin: 0; }
+  .ganador .region-nombre { color: var(--muted); margin: 0 0 16px; font-size: 1.1rem; }
+  .kpis { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .kpi { border: 1px solid var(--border); padding: 12px; background: rgba(10, 8, 22, .7); }
+  .kpi .v { font-family: var(--f-dato); font-size: 1.5rem; color: var(--cyan); }
+  .kpi .k { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .porque { margin: 0; padding-left: 20px; }
+  .porque li { margin: 4px 0; }
+  .porque li::marker { content: "▸ "; color: var(--magenta); }
+
+  .tabla-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th { font-family: var(--f-titulo); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--magenta); white-space: nowrap; }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.num { font-family: var(--f-dato); white-space: nowrap; }
+  tbody tr:hover { background: rgba(0, 240, 255, .05); }
+  tr.top td { background: rgba(252, 238, 10, .06); }
+  .region-celda strong { font-family: var(--f-dato); color: var(--text); }
+  .region-celda span { display: block; color: var(--muted); font-size: .85rem; }
+  .bar { height: 6px; margin-top: 5px; min-width: 2px; background: linear-gradient(90deg, var(--cyan), var(--magenta)); }
+  .badge { display: inline-block; font-family: var(--f-dato); font-size: .75rem; padding: 1px 8px; border: 1px solid var(--muted); color: var(--muted); }
+  .badge.warn { border-color: var(--yellow); color: var(--yellow); }
+  .badge.ok { border-color: var(--green); color: var(--green); }
+
+  ul.tareas { list-style: none; padding: 0; margin: 0; }
+  ul.tareas li { padding: 8px 0 8px 28px; border-bottom: 1px dashed var(--border); position: relative; }
+  ul.tareas li::before { content: "☐"; position: absolute; left: 0; color: var(--green); }
+  ul.tareas li .serv { font-family: var(--f-dato); font-size: .8rem; color: var(--magenta); margin-right: 6px; }
+
+  details { border: 1px solid var(--border); padding: 12px 16px; margin: 12px 0; background: rgba(10, 8, 22, .7); }
+  summary { cursor: pointer; font-family: var(--f-titulo); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+  details[open] summary { margin-bottom: 12px; }
+
+  /* Tu PC */
+  .detectado { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { font-family: var(--f-dato); font-size: .85rem; border: 1px solid var(--cyan); color: var(--cyan); padding: 3px 10px; }
+  .grande { font-family: var(--f-titulo); font-weight: 900; font-size: clamp(1.4rem, 4vw, 2rem); color: var(--yellow); }
+
+  /* Sobre el proyecto */
+  .star dt { font-family: var(--f-titulo); font-size: .78rem; letter-spacing: .12em; color: var(--magenta); margin-top: 12px; text-transform: uppercase; }
+  .star dd { margin: 2px 0 0; }
+  .redes { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .lista-simple { margin: 0; padding-left: 20px; }
+  .lista-simple li::marker { color: var(--magenta); }
+
+  footer { text-align: center; padding: 30px 16px 40px; color: var(--muted); font-family: var(--f-dato); font-size: .85rem; border-top: 1px solid var(--border); }
+  footer a { margin: 0 8px; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    .panel { padding: 16px; }
+    .btn { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="etiqueta-sup">AWS re/Start · Proyecto 01</div>
+  <h1 data-text="Asesor de Región AWS">Asesor de Región <span>AWS</span></h1>
+  <p>Elige dónde vivirá tu proyecto en AWS con datos reales: latencia medida en vivo desde tu ubicación, costo mensual de los servicios que usarás y estabilidad de la conexión.</p>
+  <div class="cta">
+    <a class="btn" href="#asesor">Iniciar análisis</a>
+    <a class="btn sec" href="#mi-pc">Tu PC en la nube</a>
+  </div>
+</header>
+
+<nav>
+  <a href="#asesor">Asesor</a>
+  <a href="#resultado">Recomendación</a>
+  <a href="#mi-pc">Tu PC vs la nube</a>
+  <a href="#proyecto">Sobre el proyecto</a>
+  <a href="#contacto">Contacto</a>
+</nav>
+
+<main>
+
+  <!-- ======================= ASESOR ======================= -->
+  <section id="asesor">
+    <h2>Asesor de región</h2>
+    <p class="bajada">Completa los 3 pasos y presiona Analizar.</p>
+
+    <div class="panel">
+      <div class="paso-titulo"><span class="paso-num">01</span><h3>¿Dónde estás?</h3></div>
+      <div class="campos">
+        <div>
+          <label for="origen">Ciudad desde donde mides (idealmente, donde estarán tus usuarios)</label>
+          <select id="origen"></select>
+        </div>
+      </div>
+      <label class="check-linea"><input type="checkbox" id="solo-latam"> Mis datos deben quedarse en Latinoamérica</label>
+    </div>
+
+    <div class="panel cyan">
+      <div class="paso-titulo"><span class="paso-num">02</span><h3>¿Qué servicios usarás?</h3></div>
+      <div class="grid">
+        <div class="servicio">
+          <label class="cabeza"><input type="checkbox" id="usa-s3" checked> Sitio web en Amazon S3</label>
+          <p class="desc">Para webs estáticas: HTML, CSS, JavaScript e imágenes.</p>
+          <div class="campos">
+            <div><label for="s3-gb">Tamaño del sitio (GB)</label><input id="s3-gb" type="number" min="0" step="0.1" value="1"></div>
+            <div><label for="objetos-visita">Archivos por visita</label><input id="objetos-visita" type="number" min="0" value="10"></div>
+          </div>
+        </div>
+        <div class="servicio">
+          <label class="cabeza"><input type="checkbox" id="usa-ec2"> Servidor en Amazon EC2</label>
+          <p class="desc">Para apps con backend, bases de datos propias o procesos que corren todo el día.</p>
+          <div class="campos">
+            <div><label for="ec2-tipo">Tipo de instancia</label><select id="ec2-tipo"></select></div>
+            <div><label for="ec2-horas">Horas encendido al día</label><input id="ec2-horas" type="number" min="0" max="24" value="24"></div>
+            <div><label for="ec2-disco">Disco (GB)</label><input id="ec2-disco" type="number" min="0" value="20"></div>
+          </div>
+        </div>
+      </div>
+      <h3 style="margin-top:18px">Tráfico esperado</h3>
+      <div class="campos">
+        <div><label for="visitas">Visitas al mes</label><input id="visitas" type="number" min="0" value="10000"></div>
+        <div><label for="mb-visita">MB por visita</label><input id="mb-visita" type="number" min="0" step="0.1" value="2"></div>
+        <div><label for="tipo-cambio">Tipo de cambio (S/ por USD)</label><input id="tipo-cambio" type="number" min="0" step="0.01" value="3.45"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="paso-titulo"><span class="paso-num">03</span><h3>¿Qué te importa más?</h3></div>
+      <div class="campos">
+        <div>
+          <label for="prioridad">Prioridad</label>
+          <select id="prioridad">
+            <option value="equilibrado">Equilibrado</option>
+            <option value="velocidad">Velocidad</option>
+            <option value="ahorro">Ahorro</option>
+          </select>
+        </div>
+      </div>
+      <p class="nota" id="pesos"></p>
+      <div class="fila-boton">
+        <button class="btn" id="btn-analizar">Analizar</button>
+      </div>
+      <div class="progreso"><div id="barra"></div></div>
+      <p id="estado">Listo para analizar. Toma entre 10 y 40 segundos.</p>
+    </div>
+  </section>
+
+  <!-- ======================= RESULTADO ======================= -->
+  <section id="resultado" hidden>
+    <h2>Recomendación</h2>
+    <p class="bajada" id="resumen-analisis"></p>
+
+    <div class="panel ganador" id="ganador"></div>
+
+    <div class="panel cyan">
+      <h3>Comparación de regiones</h3>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Región</th><th>Latencia</th><th>Estabilidad</th><th>Costo / mes</th><th>Puntaje</th></tr></thead>
+          <tbody id="tabla-candidatos"></tbody>
+        </table>
+      </div>
+      <p class="nota" id="nota-precios"></p>
+    </div>
+
+    <div class="panel">
+      <h3>Lo que te toca a ti</h3>
+      <ul class="tareas" id="responsabilidades"></ul>
+    </div>
+
+    <details>
+      <summary>Compara con comprar un servidor propio</summary>
+      <div class="campos">
+        <div><label for="onprem-precio">Precio del servidor (S/)</label><input id="onprem-precio" type="number" min="0" value="5000"></div>
+        <div><label for="onprem-vida">Vida útil (meses)</label><input id="onprem-vida" type="number" min="1" value="36"></div>
+        <div><label for="onprem-operacion">Luz, internet y mantenimiento (S/ al mes)</label><input id="onprem-operacion" type="number" min="0" value="150"></div>
+      </div>
+      <p class="nota" id="onprem-resultado"></p>
+    </details>
+
+    <details id="detalle-ranking">
+      <summary>Ranking completo de regiones</summary>
+      <div class="tabla-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Región</th><th>Latencia</th><th>Distancia</th><th>Eficiencia de ruta</th></tr></thead>
+          <tbody id="tabla-ranking"></tbody>
+        </table>
+      </div>
+      <p class="nota">Eficiencia de ruta: qué tan cerca está tu latencia del mínimo físico (la luz recorre ~200 km por ms en la fibra). Menos de 50% indica una ruta de internet con muchos desvíos.</p>
+    </details>
+  </section>
+
+  <!-- ======================= TU PC ======================= -->
+  <section id="mi-pc">
+    <h2>Tu PC vs la nube</h2>
+    <p class="bajada">¿Cuánto costaría tener tu laptop como servidor en AWS? Revisa los datos detectados, ajústalos y calcula.</p>
+
+    <div class="panel cyan">
+      <div class="detectado" id="pc-detectado"></div>
+      <div class="campos">
+        <div><label for="pc-hilos">Hilos de CPU</label><input id="pc-hilos" type="number" min="1" value="8"></div>
+        <div><label for="pc-ram">Memoria RAM (GB)</label><input id="pc-ram" type="number" min="1" value="16"></div>
+        <div><label for="pc-disco">Disco (GB)</label><input id="pc-disco" type="number" min="0" value="512"></div>
+        <div><label for="pc-horas">Horas de uso al día</label><input id="pc-horas" type="number" min="0" max="24" value="8"></div>
+        <div><label for="pc-dias">Días de uso al mes</label><input id="pc-dias" type="number" min="0" max="31" value="22"></div>
+        <div><label for="pc-region">Región</label><select id="pc-region"></select></div>
+        <div><label for="pc-laptop">Precio de tu laptop (S/)</label><input id="pc-laptop" type="number" min="0" value="3500"></div>
+      </div>
+      <div class="fila-boton"><button class="btn" id="btn-pc">Calcular</button></div>
+    </div>
+
+    <div id="pc-resultado" hidden></div>
+  </section>
+
+  <!-- ======================= SOBRE EL PROYECTO ======================= -->
+  <section id="proyecto">
+    <h2>Sobre el proyecto</h2>
+    <div class="panel">
+      <h3>Resumen STAR</h3>
+      <dl class="star">
+        <dt>Situación</dt>
+        <dd>Una pyme peruana quiere publicar su proyecto en AWS, pero no sabe en qué región ni cuánto le costará.</dd>
+        <dt>Tarea</dt>
+        <dd>Construir una herramienta que recomiende la región con datos reales, según los servicios que la pyme usará.</dd>
+        <dt>Acción</dt>
+        <dd>Medí la latencia y su estabilidad desde el navegador hacia las regiones de AWS, modelé los costos de S3 y EC2 con precios oficiales y combiné todo en un puntaje. Publiqué la herramienta como sitio web estático en Amazon S3.</dd>
+        <dt>Resultado</dt>
+        <dd>[EDITA: tu hallazgo principal. Ejemplo: desde Lima, sa-east-1 es la más rápida, pero ___ ofrece el mejor equilibrio entre costo y velocidad.]</dd>
+      </dl>
+    </div>
+
+    <div class="grid">
+      <div class="panel cyan">
+        <h3>Objetivo SMART</h3>
+        <ul class="lista-simple">
+          <li><strong>Específico:</strong> recomendar la región de AWS para una pyme.</li>
+          <li><strong>Medible:</strong> latencia a 33 regiones y costo en 5.</li>
+          <li><strong>Alcanzable:</strong> solo S3 y herramientas gratuitas.</li>
+          <li><strong>Relevante:</strong> elegir región es la primera decisión de todo proyecto cloud.</li>
+          <li><strong>Temporal:</strong> [EDITA: fecha de publicación].</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Principios de liderazgo</h3>
+        <ul class="lista-simple">
+          <li><strong>Obsesión por el cliente:</strong> la pyme decide con datos.</li>
+          <li><strong>Profundizar:</strong> mido también la estabilidad y la eficiencia de ruta.</li>
+          <li><strong>Frugalidad:</strong> la herramienta cuesta centavos al mes.</li>
+          <li><strong>Pensar en grande:</strong> cualquiera puede medir desde su ciudad.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel cyan" id="contacto">
+      <h3>Frank Flores Gonzales</h3>
+      <p>Estudiante de Ingeniería Electrónica en la UNI y participante de AWS re/Start. Rol objetivo: <strong>Cloud Engineer (infraestructura)</strong>.</p>
+      <div class="redes">
+        <a class="btn" href="https://www.linkedin.com/in/frank-flores-gonzales" target="_blank" rel="noopener">LinkedIn</a>
+        <a class="btn sec" href="https://github.com/frankfloresg-primeUNI" target="_blank" rel="noopener">GitHub</a>
+        <a class="btn sec" href="mailto:frank.floresgonzales2006@gmail.com">Gmail</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Asesor de Región AWS · Alojado en Amazon S3 · Frank Flores Gonzales<br><br>
+  <a href="https://www.linkedin.com/in/frank-flores-gonzales" target="_blank" rel="noopener">LinkedIn</a>
+  <a href="https://github.com/frankfloresg-primeUNI" target="_blank" rel="noopener">GitHub</a>
+  <a href="mailto:frank.floresgonzales2006@gmail.com">frank.floresgonzales2006@gmail.com</a>
+</footer>
+
+<script src="datos/precios.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
